@@ -79,10 +79,10 @@ def _ensure_tick_writer():
 
 logger = logging.getLogger(__name__)
 
+GRINCH_TOKEN_ADDR = os.getenv("GRINCH_TOKEN_ADDRESS", "")
 GRINCH_DEDUST_URL = (
-    "https://dedust.io/coins/SET_GRINCH_TOKEN_IN_ENV"
+    f"https://dedust.io/coins/{GRINCH_TOKEN_ADDR}" if GRINCH_TOKEN_ADDR else ""
 )
-GRINCH_TOKEN_ADDR = "SET_GRINCH_TOKEN_IN_ENV"
 
 # ── Кэш get_advisor_summary() ─────────────────────────────────────────────────
 # Советник вызывает эту функцию раз в несколько минут; она делает тяжёлые DB-запросы

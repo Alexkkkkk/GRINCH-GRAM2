@@ -529,7 +529,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "")
     # H1 fix: никогда не используем хардкоднутый дефолт — генерируем случайный.
     # app.py использует _resolve_secret_key() (постоянный файл), это поле — запасное.
-    if not SECRET_KEY or SECRET_KEY == "SET_SECRET_KEY_IN_ENV":
+    if not SECRET_KEY:
         import secrets as _s
 
         SECRET_KEY = _s.token_hex(32)

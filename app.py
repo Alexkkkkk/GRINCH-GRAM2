@@ -465,7 +465,7 @@ def _resolve_secret_key():
     import secrets as _secrets
 
     key = os.environ.get("SESSION_SECRET") or os.environ.get("SECRET_KEY")
-    if key and key != "SET_SECRET_KEY_IN_ENV":
+    if key:
         return key
     # Используем DATA_DIR (персистентный на Bothost) вместо рабочей директории
     _data_dir = os.environ.get(
