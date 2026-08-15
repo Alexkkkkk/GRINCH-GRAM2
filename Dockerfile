@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Системные зависимости для pytoniq / cryptography / psycopg2
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
+
+# Обновляем setuptools чтобы закрыть CVE-2026-23949 (jaraco.context) и CVE-2026-24049 (wheel)
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2"
 
 # Сначала только requirements — чтобы docker кэшировал слой зависимостей
 COPY requirements.txt .

@@ -1,0 +1,15 @@
+title = "GRINCH-GRAM Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow cleaned placeholders and safe defaults"
+paths = [
+    '''\.gitleaks\.toml$''',
+    '''\.gitleaksignore$''',
+]
+regexes = [
+    '''SET_GRINCH_TOKEN_IN_ENV''',
+    '''SET_SECRET_KEY_IN_ENV''',
+]

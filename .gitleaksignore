@@ -1,0 +1,9 @@
+# Historical leaks cleaned by git-filter-repo — these commits no longer exist in main
+# but may be cached by GitHub Actions fetch-depth:0
+93af367015ecbb7ee1d3ead14f554944ce26a1e6:analytics_buffer.py:generic-api-key:10
+93af367015ecbb7ee1d3ead14f554944ce26a1e6:analytics_buffer.py:generic-api-key:28
+93af367015ecbb7ee1d3ead14f554944ce26a1e6:.replit:generic-api-key:59
+eb7a659eeffe09264a7a4029b86902aab903835e:analytics_buffer.py:generic-api-key:85
+eb7a659eeffe09264a7a4029b86902aab903835e:config.py:generic-api-key:547
+dbcc6c5ad3b5316f6da8934325fe8e45e18544f0:config.py:generic-api-key:419
+af3a3a930a2acb20579fc91129f6bfefa2e002f5:config.py:generic-api-key:419
