@@ -7,11 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /usr/src/app
 
-# Обновляем setuptools и wheel чтобы закрыть CVE
+# Обновляем setuptools, wheel и msgpack чтобы закрыть CVE
 # Явно удаляем старую версию setuptools из базового образа перед установкой новой
 RUN pip install --no-cache-dir --upgrade pip && \
     pip uninstall -y setuptools && \
-    pip install --no-cache-dir "setuptools>=78.1.1" "wheel>=0.46.2"
+    pip install --no-cache-dir "setuptools>=78.1.1" "wheel>=0.46.2" "msgpack>=1.2.1"
 
 # Сначала только requirements — чтобы docker кэшировал слой зависимостей
 COPY requirements.txt .
