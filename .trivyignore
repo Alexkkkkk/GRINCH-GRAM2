@@ -2,3 +2,8 @@
 # We explicitly install setuptools>=78.1.1 in a later layer.
 # Trivy scans all layers including the base; the old version is not used at runtime.
 CVE-2025-47273
+
+# msgpack 1.1.2 is pulled in as a transitive dependency by catboost/lightgbm/xgboost.
+# We explicitly install msgpack>=1.2.1, but Trivy still sees the old version
+# in the vendor directory of those packages. Runtime uses the updated version.
+GHSA-6v7p-g79w-8964
