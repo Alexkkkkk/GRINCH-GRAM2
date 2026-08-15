@@ -544,9 +544,7 @@ class Config:
         "TON_WALLET", "EQDDgb2BTM-KCjntOoUg6uHllvnu3KGqEquKw6IySVP3hGXJ"
     )
     # Адрес контракта токена GRINCH (TON-джеттон)
-    GRINCH_TOKEN_ADDRESS = os.getenv(
-        "GRINCH_TOKEN_ADDRESS", "SET_GRINCH_TOKEN_IN_ENV"
-    )
+    GRINCH_TOKEN_ADDRESS = os.getenv("GRINCH_TOKEN_ADDRESS", "")
     # Реальный ликвидный пул GRINCH/TON на DeDust (нестандартная комиссия 1%).
     # Factory.get_pool возвращает канонический адрес дефолтной комиссии, который
     # on-chain НЕ существует — поэтому свопы нужно слать прямо в этот пул.

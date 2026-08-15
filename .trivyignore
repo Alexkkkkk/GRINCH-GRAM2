@@ -1,0 +1,4 @@
+# setuptools 70.3.0 is embedded in python:3.12-slim base image.
+# We explicitly install setuptools>=78.1.1 in a later layer.
+# Trivy scans all layers including the base; the old version is not used at runtime.
+CVE-2025-47273
