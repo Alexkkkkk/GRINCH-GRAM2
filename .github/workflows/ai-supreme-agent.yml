@@ -44,9 +44,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'repository_dispatch' }}
 
 jobs:
-  # ================================================================
-  # PHASE 0: VPS ERROR INTAKE
-  # ================================================================
   vps-error-intake:
     name: Phase 0 — VPS Error Intake
     runs-on: ubuntu-latest
@@ -60,23 +57,21 @@ jobs:
     steps:
       - name: Receive VPS Error
         id: intake
+        env:
+          PAYLOAD_JSON: ${{ toJson(github.event.client_payload) }}
         run: |
           set -euo pipefail
-          cat <<'PAYLOAD_EOF' > /tmp/payload.json
-${{ toJson(github.event.client_payload) }}
-PAYLOAD_EOF
+          printf '%s\n' "$PAYLOAD_JSON" > /tmp/payload.json
           ERROR_LOG="$(jq -r '.error_log // ""' /tmp/payload.json)"
           SEVERITY="$(jq -r '.severity // "warning"' /tmp/payload.json)"
           SERVICE="$(jq -r '.service // "unknown"' /tmp/payload.json)"
           VPS_IP="$(jq -r '.vps_ip // empty' /tmp/payload.json)"
           VPS_IP="${VPS_IP:-${{ env.VPS_HOST }}}"
-
           echo "=== VPS ERROR RECEIVED ==="
           echo "Severity: $SEVERITY"
           echo "Service: $SERVICE"
           echo "VPS IP: $VPS_IP"
           printf '%s\n' "$ERROR_LOG" | head -20
-
           {
             echo "error_log<<GITHUB_ACTIONS_EOF"
             printf '%s\n' "$ERROR_LOG"
@@ -87,9 +82,6 @@ PAYLOAD_EOF
             echo "trigger_type=vps-realtime"
           } >> "$GITHUB_OUTPUT"
 
-  # ================================================================
-  # PHASE 1: CONTEXT INTELLIGENCE
-  # ================================================================
   context-gathering:
     name: Phase 1 — Context Intelligence
     runs-on: ubuntu-latest
@@ -115,19 +107,17 @@ PAYLOAD_EOF
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: VPS Error Info
         id: vps-info
         if: github.event_name == 'repository_dispatch'
+        env:
+          PAYLOAD_JSON: ${{ toJson(github.event.client_payload) }}
         run: |
           set -euo pipefail
-          cat <<'PAYLOAD_EOF' > /tmp/payload.json
-${{ toJson(github.event.client_payload) }}
-PAYLOAD_EOF
+          printf '%s\n' "$PAYLOAD_JSON" > /tmp/payload.json
           ERROR_LOG="$(jq -r '.error_log // ""' /tmp/payload.json)"
           SEVERITY="$(jq -r '.severity // "warning"' /tmp/payload.json)"
           {
@@ -136,7 +126,6 @@ PAYLOAD_EOF
             echo "GITHUB_ACTIONS_EOF"
             echo "vps_severity=$SEVERITY"
           } >> "$GITHUB_OUTPUT"
-
       - name: Check AI API Keys
         id: check-key
         run: |
@@ -156,7 +145,6 @@ PAYLOAD_EOF
           fi
           echo "has_ai_key=$HAS_AI" >> "$GITHUB_OUTPUT"
           echo "ai_provider=$PROVIDER" >> "$GITHUB_OUTPUT"
-
       - name: Gather Code Metrics
         id: metrics
         run: |
@@ -164,7 +152,6 @@ PAYLOAD_EOF
           pip install radon 2>/dev/null || true
           COMPLEXITY=$(radon cc . -s -a 2>/dev/null | tail -1 || echo "N/A")
           echo "complexity=$COMPLEXITY" >> "$GITHUB_OUTPUT"
-
       - name: Secret Scan
         id: secrets
         run: |
@@ -189,7 +176,6 @@ PAYLOAD_EOF
             fi
           fi
           echo "found=$FOUND" >> "$GITHUB_OUTPUT"
-
       - name: Analyze Context
         id: context
         run: |
@@ -208,7 +194,6 @@ PAYLOAD_EOF
           fi
           echo "files=$(cat changed_files.txt | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
           echo "py_files=$(grep '\.py$' changed_files.txt | tr '\n' ' ' || echo '')" >> "$GITHUB_OUTPUT"
-
       - name: AI Risk Assessment
         id: planner
         if: steps.check-key.outputs.has_ai_key == 'true'
@@ -222,7 +207,6 @@ PAYLOAD_EOF
           set -euo pipefail
           python3 - <<'PY'
           import os, json, urllib.request, re, time
-
           def call_ai(prompt, max_tokens=500, temperature=0.1, retries=3):
             kimi_key = os.environ.get("KIMI_API_KEY")
             groq_key = os.environ.get("GROQ_API_KEY")
@@ -231,7 +215,6 @@ PAYLOAD_EOF
               "temperature": temperature,
               "max_tokens": max_tokens,
             }
-
             last_error = None
             for attempt in range(retries):
               if kimi_key:
@@ -251,7 +234,6 @@ PAYLOAD_EOF
                     time.sleep(2 ** attempt)
                   if not groq_key:
                     continue
-
               if groq_key:
                 payload = {**payload_base, "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")}
                 req = urllib.request.Request(
@@ -267,9 +249,7 @@ PAYLOAD_EOF
                   print(f"GROQ attempt {attempt+1}/{retries} failed: {e}")
                   if attempt < retries - 1:
                     time.sleep(2 ** attempt)
-
             raise RuntimeError(f"All AI providers failed after {retries} attempts. Last error: {last_error}")
-
           prompt = (
             "You are an AI project manager. Decide what checks to run. "
             "Return ONLY JSON: {\"plan\": [\"code-review\",\"bug-hunt\",\"security\",\"tests\",\"perf\"], \"priority\": \"high\"}"
@@ -286,11 +266,9 @@ PAYLOAD_EOF
           except Exception as e:
             print(f"AI planning failed: {e}")
             plan_result = "fallback"
-
           with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
             f.write(f"plan={plan_result}\n")
           PY
-
       - name: Risk Level Assessment
         id: risk
         run: |
@@ -303,7 +281,6 @@ PAYLOAD_EOF
             RISK="${{ github.event.client_payload.severity || 'warning' }}"
           fi
           echo "level=$RISK" >> "$GITHUB_OUTPUT"
-
       - name: Cache Intelligence
         uses: actions/cache@v4
         with:
@@ -311,9 +288,7 @@ PAYLOAD_EOF
           key: ai-context-${{ github.sha }}-${{ github.run_id }}
           restore-keys: |
             ai-context-
-            # ================================================================
-  # PHASE 2: PARALLEL AI ANALYSIS
-  # ================================================================
+
   ai-analysis:
     name: Phase 2 — ${{ matrix.agent }} Analysis
     needs: context-gathering
@@ -334,16 +309,13 @@ PAYLOAD_EOF
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install Agent Tools
         run: |
           set -euo pipefail
           pip install ruff bandit radon vulture 2>/dev/null || true
-
       - name: Run AI Agent — ${{ matrix.agent }}
         id: ai-agent
         env:
@@ -359,11 +331,9 @@ PAYLOAD_EOF
           set -euo pipefail
           python3 - <<'PY'
           import os, json, urllib.request, urllib.error, sys, time
-
           AGENT = os.environ.get("AGENT_TYPE", "code-reviewer")
           CHANGED = os.environ.get("CHANGED_FILES", "")
           VPS_ERROR = os.environ.get("VPS_ERROR", "")
-
           def call_ai(prompt, max_tokens=4000, temperature=0.1, timeout=120, retries=3):
             kimi_key = os.environ.get("KIMI_API_KEY")
             groq_key = os.environ.get("GROQ_API_KEY")
@@ -372,7 +342,6 @@ PAYLOAD_EOF
               "temperature": temperature,
               "max_tokens": max_tokens,
             }
-
             last_error = None
             for attempt in range(retries):
               if kimi_key:
@@ -392,7 +361,6 @@ PAYLOAD_EOF
                     time.sleep(2 ** attempt)
                   if not groq_key:
                     continue
-
               if groq_key:
                 payload = {**payload_base, "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")}
                 req = urllib.request.Request(
@@ -408,9 +376,7 @@ PAYLOAD_EOF
                   print(f"GROQ attempt {attempt+1}/{retries} failed: {e}", file=sys.stderr)
                   if attempt < retries - 1:
                     time.sleep(2 ** attempt)
-
             raise RuntimeError(f"All AI providers failed after {retries} attempts. Last error: {last_error}")
-
           code_blocks = []
           if CHANGED.strip():
             for f in CHANGED.strip().split():
@@ -428,21 +394,16 @@ PAYLOAD_EOF
                   code_blocks.append(f"=== {f} ===\n{fh.read()[:3000]}")
               except Exception:
                 pass
-
           code = "\n\n".join(code_blocks) if code_blocks else "No code available."
-
           vps_context = ""
           if VPS_ERROR:
             vps_context = f"\n\nCRITICAL: VPS runtime error:\n```\n{VPS_ERROR[:4000]}\n```\nFocus on root cause."
-
           PROMPTS = {
             "code-reviewer": "You are a senior Python architect. Review code for quality, maintainability, and best practices." + vps_context,
             "bug-hunter": "You are an elite bug hunter. Find bugs causing VPS error. Format: severity, file:line, explanation, fix." + vps_context,
             "security-auditor": "You are a cybersecurity expert. Scan for vulnerabilities, insecure patterns, and data exposure." + vps_context,
           }
-
           prompt = PROMPTS.get(AGENT, PROMPTS["code-reviewer"]) + f"\n\nCode:\n{code}"
-
           report_file = f"ai_report_{AGENT}.md"
           status = "failed"
           try:
@@ -459,11 +420,9 @@ PAYLOAD_EOF
           except Exception as e:
             with open(report_file, "w", encoding="utf-8") as f:
               f.write(f"# AI Agent: {AGENT.upper()}\n\nError: {e}\n")
-
           with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
             f.write(f"status={status}\n")
           PY
-
       - name: Upload Report Artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -472,9 +431,6 @@ PAYLOAD_EOF
           path: ai_report_${{ matrix.agent }}.md
           retention-days: 30
 
-  # ================================================================
-  # PHASE 3: AUTO-FIX (Safe Mode via PR)
-  # ================================================================
   auto-fix-everything:
     name: Phase 3 — Auto-Fix Everything
     needs: [context-gathering, ai-analysis]
@@ -492,7 +448,6 @@ PAYLOAD_EOF
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download Agent Reports
         uses: actions/download-artifact@v4
         with:
@@ -500,13 +455,11 @@ PAYLOAD_EOF
           pattern: ai-report-*
           merge-multiple: true
         continue-on-error: true
-
       - name: Apply Known Security & Config Fixes
         id: known-fixes
         run: |
           set -euo pipefail
           CHANGES=0
-
           echo "=== FIX 1: requirements.txt deduplication ==="
           if [ -f "requirements.txt" ]; then
             python3 - <<'PY'
@@ -533,7 +486,6 @@ PAYLOAD_EOF
               CHANGES=$((CHANGES + 1))
             fi
           fi
-
           echo "=== FIX 2: Close SSH backdoor in deploy.sh ==="
           if [ -f "deploy.sh" ]; then
             sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' deploy.sh
@@ -542,7 +494,6 @@ PAYLOAD_EOF
               CHANGES=$((CHANGES + 1))
             fi
           fi
-
           echo "=== FIX 3: Remove .env.bak_* from .gitignore ==="
           if [ -f ".gitignore" ]; then
             sed -i '/\.env\.bak_\*/d' .gitignore
@@ -551,7 +502,6 @@ PAYLOAD_EOF
               CHANGES=$((CHANGES + 1))
             fi
           fi
-
           echo "=== FIX 4: Ensure AI artifacts are in .gitignore ==="
           if [ -f ".gitignore" ]; then
             if ! grep -q "ai_emergency_fix.md" .gitignore; then
@@ -563,15 +513,12 @@ PAYLOAD_EOF
               CHANGES=$((CHANGES + 1))
             fi
           fi
-
           echo "=== FIX 5: Remove replit_key.pub if exists ==="
           if [ -f "replit_key.pub" ]; then
             git rm -f replit_key.pub
             CHANGES=$((CHANGES + 1))
           fi
-
           echo "known_fixes=$CHANGES" >> "$GITHUB_OUTPUT"
-
       - name: Generate AI Emergency Fix (VPS-aware)
         env:
           KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
@@ -583,10 +530,8 @@ PAYLOAD_EOF
         run: |
           set -euo pipefail
           cat /tmp/ai_reports/ai_report_*.md > /tmp/all_reports.md 2>/dev/null || echo "No reports" > /tmp/all_reports.md
-
           python3 - <<'PY'
           import os, json, urllib.request, time
-
           def call_ai(prompt, max_tokens=4000, temperature=0.05, timeout=120, retries=3):
             kimi_key = os.environ.get("KIMI_API_KEY")
             groq_key = os.environ.get("GROQ_API_KEY")
@@ -595,7 +540,6 @@ PAYLOAD_EOF
               "temperature": temperature,
               "max_tokens": max_tokens,
             }
-
             last_error = None
             for attempt in range(retries):
               if kimi_key:
@@ -615,7 +559,6 @@ PAYLOAD_EOF
                     time.sleep(2 ** attempt)
                   if not groq_key:
                     continue
-
               if groq_key:
                 payload = {**payload_base, "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")}
                 req = urllib.request.Request(
@@ -631,26 +574,21 @@ PAYLOAD_EOF
                   print(f"GROQ attempt {attempt+1}/{retries} failed: {e}")
                   if attempt < retries - 1:
                     time.sleep(2 ** attempt)
-
             raise RuntimeError(f"All AI providers failed after {retries} attempts. Last error: {last_error}")
-
           try:
             with open("/tmp/all_reports.md", encoding="utf-8") as f:
               reports = f.read()[:6000]
           except Exception:
             reports = "No reports."
-
           vps_error = os.environ.get("VPS_ERROR", "")
           vps_context = ""
           if vps_error:
             vps_context = f"\n\nThis fix MUST address VPS error:\n```\n{vps_error[:4000]}\n```\n"
-
           prompt = (
             "You are an emergency fix engineer. MINIMAL, SAFE fixes. CRITICAL/HIGH only.\n"
             "Format: FILE: filename.py\n```python\n# FIX: description\nfixed_code\n```\n\n"
             f"Reports:\n{reports}{vps_context}"
           )
-
           try:
             fix = call_ai(prompt, max_tokens=4000, temperature=0.05)
             with open("/tmp/ai_emergency_fix.md", "w", encoding="utf-8") as f:
@@ -659,32 +597,26 @@ PAYLOAD_EOF
             with open("/tmp/ai_emergency_fix.md", "w", encoding="utf-8") as f:
               f.write(f"Fix generation failed: {e}")
           PY
-
       - name: Apply AI Fixes (Safe Patch Mode)
         id: ai-fixes
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import re, os, sys, difflib
-
+          import re, os, sys
           try:
             with open("/tmp/ai_emergency_fix.md", encoding="utf-8") as f:
               content = f.read()
           except Exception:
             sys.exit(0)
-
           pattern = r'^FILE:\s*([^\n]+?)\s*```python\s*\n(.*?)\n```'
           matches = re.findall(pattern, content, re.MULTILINE | re.DOTALL)
-
           repo_root = os.getcwd()
           applied = 0
           skipped = 0
-
           for filename, code in matches:
             code = code.strip()
             if not code:
               continue
-
             target_path = os.path.abspath(os.path.join(repo_root, filename))
             if not target_path.startswith(repo_root + os.sep):
               print(f"SKIP (path escape): {filename}")
@@ -698,42 +630,33 @@ PAYLOAD_EOF
               print(f"SKIP (not exists): {filename}")
               skipped += 1
               continue
-
             try:
               compile(code, target_path, 'exec')
             except SyntaxError as e:
               print(f"SKIP (syntax error): {filename} — {e}")
               skipped += 1
               continue
-
             with open(target_path, "r", encoding="utf-8") as orig:
               original = orig.read()
-
             if len(code) < len(original) * 0.3:
               print(f"SKIP (too small, likely partial): {filename}")
               skipped += 1
               continue
-
             backup = target_path + ".ai-backup"
             with open(backup, "w", encoding="utf-8") as b:
               b.write(original)
-
             with open(target_path, "w", encoding="utf-8") as f:
               f.write(code + "\n")
-
             print(f"APPLIED: {filename}")
             applied += 1
-
           with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
             f.write(f"applied={applied}\n")
             f.write(f"skipped={skipped}\n")
           PY
-
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Create Fix Branch & Commit
         id: auto-commit
         run: |
@@ -746,15 +669,12 @@ PAYLOAD_EOF
           fi
           echo "=== Files staged ==="
           git diff --cached --stat
-
           BRANCH_NAME="ai/auto-fix-$(date +%Y%m%d-%H%M%S)-${{ github.run_id }}"
           git checkout -b "$BRANCH_NAME"
           git commit -m "bot(auto-fix): automated security & code fixes [skip ci]"
           git push origin "$BRANCH_NAME"
-
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
-
       - name: Create Pull Request
         id: create-pr
         if: steps.auto-commit.outputs.changed == 'true'
@@ -763,29 +683,24 @@ PAYLOAD_EOF
         run: |
           set -euo pipefail
           BRANCH="${{ steps.auto-commit.outputs.branch }}"
-
           PR_URL=$(gh pr create \
             --base main \
             --head "$BRANCH" \
             --title "🤖 AI Auto-Fix: Automated security & code fixes" \
             --body "$(cat <<'EOF'
           ## Автоматические исправления от AI Supreme Agent
-
           ### Что сделано:
           - Анализ кода на уязвимости и ошибки
           - Применение известных security-фиксов
           - AI-generated emergency fixes (если применимы)
-
           ### Проверьте перед мержем:
           - [ ] Изменения не ломают логику торговли
           - [ ] Нет случайных изменений конфигурации
           - [ ] Тесты проходят (если есть)
-
           > ⚠️ Этот PR создан автоматически. Обязательно проведите ревью!
           EOF
           )" \
             --label "auto-fix,ai-generated" 2>/dev/null || true)
-
           if [ -n "$PR_URL" ]; then
             echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
             echo "::notice::PR created: $PR_URL"
@@ -793,9 +708,7 @@ PAYLOAD_EOF
             echo "pr_url=" >> "$GITHUB_OUTPUT"
             echo "::warning::Failed to create PR"
           fi
-   # ================================================================
-  # PHASE 4: LEARNING & EVOLUTION
-  # ================================================================
+
   ai-learning:
     name: Phase 4 — Learning & Evolution
     needs: [context-gathering, ai-analysis]
@@ -808,7 +721,6 @@ PAYLOAD_EOF
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Download Learning History
         uses: actions/cache@v4
         with:
@@ -816,12 +728,10 @@ PAYLOAD_EOF
           key: ai-learning-history-${{ github.repository }}
           restore-keys: |
             ai-learning-history-
-
       - name: Update Learning Database
         run: |
           set -euo pipefail
           mkdir -p .ai-learning
-
           {
             echo "run_id=${{ github.run_id }}"
             echo "trigger=${{ github.event_name }}"
@@ -829,9 +739,7 @@ PAYLOAD_EOF
             echo "timestamp=$(date -Iseconds)"
             echo "changed_files=\"${{ needs.context-gathering.outputs.changed_files }}\""
           } >> ".ai-learning/run_${{ github.run_id }}.log"
-
           ls -t .ai-learning/run_*.log 2>/dev/null | tail -n +51 | xargs -r rm -f 2>/dev/null || true
-
       - name: Generate Insights from History
         env:
           KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
@@ -845,10 +753,8 @@ PAYLOAD_EOF
           if [ ! -s history_context.txt ]; then
             echo "No history data available." > history_context.txt
           fi
-
           python3 - <<'PY'
           import os, json, urllib.request, time
-
           def call_ai(prompt, max_tokens=2000, temperature=0.3, timeout=60, retries=3):
             kimi_key = os.environ.get("KIMI_API_KEY")
             groq_key = os.environ.get("GROQ_API_KEY")
@@ -857,7 +763,6 @@ PAYLOAD_EOF
               "temperature": temperature,
               "max_tokens": max_tokens,
             }
-
             last_error = None
             for attempt in range(retries):
               if kimi_key:
@@ -877,7 +782,6 @@ PAYLOAD_EOF
                     time.sleep(2 ** attempt)
                   if not groq_key:
                     continue
-
               if groq_key:
                 payload = {**payload_base, "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")}
                 req = urllib.request.Request(
@@ -893,15 +797,12 @@ PAYLOAD_EOF
                   print(f"GROQ attempt {attempt+1}/{retries} failed: {e}")
                   if attempt < retries - 1:
                     time.sleep(2 ** attempt)
-
             raise RuntimeError(f"All AI providers failed after {retries} attempts. Last error: {last_error}")
-
           try:
             with open("history_context.txt", encoding="utf-8") as f:
               history = f.read()[:3000]
           except Exception:
             history = "No history."
-
           prompt = (
             "You are an AI learning from its own performance. Based on this history:\n\n"
             f"{history}\n\n"
@@ -912,7 +813,6 @@ PAYLOAD_EOF
             "4. How to improve future analysis?\n"
             "Return as markdown."
           )
-
           try:
             insights = call_ai(prompt, max_tokens=2000, temperature=0.3)
             with open("ai_insights.md", "w", encoding="utf-8") as f:
@@ -923,7 +823,6 @@ PAYLOAD_EOF
               f.write(f"# AI Learning Insights\n\nError generating insights: {e}")
             print(f"Insight generation failed: {e}")
           PY
-
       - name: Upload Insights Artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -931,7 +830,6 @@ PAYLOAD_EOF
           name: ai-learning-insights
           path: ai_insights.md
           retention-days: 90
-
       - name: Persist Learning Database
         uses: actions/cache@v4
         with:
@@ -940,9 +838,6 @@ PAYLOAD_EOF
           restore-keys: |
             ai-learning-history-${{ github.repository }}
 
-  # ================================================================
-  # PHASE 5: AUTO-DEPLOY TO VPS (Zero-Downtime)
-  # ================================================================
   deploy-to-vps:
     name: Phase 5 — Auto-Deploy to VPS
     needs: [context-gathering]
@@ -961,7 +856,6 @@ PAYLOAD_EOF
             exit 1
           fi
           echo "::notice::VPS_SSH_KEY is configured."
-
       - name: Setup SSH Key
         run: |
           set -euo pipefail
@@ -970,12 +864,10 @@ PAYLOAD_EOF
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "${{ env.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
-
       - name: Deploy to VPS (Zero-Downtime)
         run: |
           set -euo pipefail
           echo "=== Deploying to VPS ${{ env.VPS_HOST }} ==="
-
           ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=30 \
             -i ~/.ssh/id_ed25519 \
             "${{ env.VPS_USER }}@${{ env.VPS_HOST }}" \
@@ -990,7 +882,6 @@ PAYLOAD_EOF
              docker compose ps | grep -E 'healthy|running' && echo 'DEPLOY SUCCESS' || echo 'DEPLOY WARNING'; \
              echo '--- Cleaning up old images ---'; \
              docker image prune -f || true"
-
       - name: Health Check
         run: |
           set -euo pipefail
@@ -1005,10 +896,8 @@ PAYLOAD_EOF
           done
           echo "::warning::Health check failed after 3 attempts"
           exit 1
-
       - name: Cleanup SSH Key
         if: always()
         run: |
           rm -f ~/.ssh/id_ed25519
           ssh-add -D 2>/dev/null || true
- 
