@@ -1,0 +1,42 @@
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - Dockerfile
+          - docker-compose.yml
+          - .dockerignore
+
+ci/cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/*
+          - .github/dependabot.yml
+          - .github/labeler.yml
+
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.py"
+          - "requirements.txt"
+          - "pyproject.toml"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - static/**/*
+          - "*.html"
+          - "*.css"
+          - "*.js"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/security.yml
+          - .github/workflows/codeql.yml
+          - .github/workflows/nightly-audit.yml
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - README.md
+          - "*.md"
+          - .github/*.md
