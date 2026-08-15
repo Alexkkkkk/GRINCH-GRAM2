@@ -126,14 +126,6 @@ jobs:
           bandit -r . -ll -iii
         continue-on-error: true
 
-      - name: 🚀 Smart Auto-Commit & Push
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "overlord(auto-fix): 👑 полная авто-оптимизация, исправление ошибок и защита UI [skip ci]"
-          branch: ${{ github.head_ref || github.ref_name }}
-          commit_user_name: "GRINCH-GRAM Overlord Bot"
-          commit_user_email: "overlord@grinch-gram.local"
-
       - name: 📊 Executive Visual Summary
         if: always()
         run: |

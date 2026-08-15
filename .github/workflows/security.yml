@@ -50,7 +50,7 @@ jobs:
       - name: Scan repository for leaked secrets
         uses: gitleaks/gitleaks-action@v3
         with:
-          args: detect --source . --no-git --redact --exit-code 1
+          args: detect --source . --config .gitleaks.toml --redact --exit-code 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -60,20 +60,13 @@ jobs:
           bandit -r . -ll -iii
         continue-on-error: true
 
-      - name: 🛠️ Auto-Fix Code Issues (Ruff & Black)
+      - name: 🛠️ Check Code Issues (Ruff & Black)
         run: |
-          ruff check . --fix
-          black .
+          ruff check .
+          black --check .
 
-      - name: 🚀 Commit & Push Auto-Fixes (Skipped on Dependabot)
-        if: github.actor != 'dependabot[bot]'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "robot(auto-fix): 🛠️ автономное исправление синтаксиса и стиля [skip ci]"
-          branch: ${{ github.head_ref || github.ref_name }}
-          commit_user_name: "Grinch-Gram Bot"
-          commit_user_email: "bot@grinch-gram.local"
-
+      - name: 📝 Report Status
+        run: echo "Code checks completed"
   docker-deep-test:
     name: 🐳 Docker Build & Live Health Audit
     needs: auto-code-doctor
