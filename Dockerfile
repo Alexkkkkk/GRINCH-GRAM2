@@ -7,8 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /usr/src/app
 
-# Обновляем setuptools чтобы закрыть CVE-2026-23949 (jaraco.context) и CVE-2026-24049 (wheel)
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2"
+# Обновляем setuptools и wheel чтобы закрыть CVE
+# Явно удаляем старую версию setuptools из базового образа перед установкой новой
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip uninstall -y setuptools && \
+    pip install --no-cache-dir "setuptools>=78.1.1" "wheel>=0.46.2"
 
 # Сначала только requirements — чтобы docker кэшировал слой зависимостей
 COPY requirements.txt .

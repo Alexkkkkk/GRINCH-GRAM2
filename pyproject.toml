@@ -30,6 +30,7 @@ dependencies = [
     "orjson>=3.11.9",
     "jaraco.context>=6.1.0",
     "wheel>=0.46.2",
+    "msgpack>=1.2.1",
 ]
 
 [tool.ruff]
