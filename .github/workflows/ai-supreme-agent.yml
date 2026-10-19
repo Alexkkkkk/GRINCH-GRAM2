@@ -104,10 +104,10 @@ jobs:
       vps_error: ${{ steps.vps-info.outputs.vps_error }}
       vps_severity: ${{ steps.vps-info.outputs.vps_severity }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: VPS Error Info
@@ -282,7 +282,7 @@ jobs:
           fi
           echo "level=$RISK" >> "$GITHUB_OUTPUT"
       - name: Cache Intelligence
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CACHE_DIR }}
           key: ai-context-${{ github.sha }}-${{ github.run_id }}
@@ -306,10 +306,10 @@ jobs:
       pull-requests: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install Agent Tools
@@ -425,7 +425,7 @@ jobs:
           PY
       - name: Upload Report Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ai-report-${{ matrix.agent }}
           path: ai_report_${{ matrix.agent }}.md
@@ -444,12 +444,12 @@ jobs:
       changed: ${{ steps.auto-commit.outputs.changed }}
       pr_url: ${{ steps.create-pr.outputs.pr_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Agent Reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/ai_reports
           pattern: ai-report-*
@@ -718,11 +718,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Download Learning History
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ai-learning
           key: ai-learning-history-${{ github.repository }}
@@ -825,13 +825,13 @@ jobs:
           PY
       - name: Upload Insights Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ai-learning-insights
           path: ai_insights.md
           retention-days: 90
       - name: Persist Learning Database
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ai-learning
           key: ai-learning-history-${{ github.repository }}
