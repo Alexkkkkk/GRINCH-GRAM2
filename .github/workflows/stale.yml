@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           stale-issue-message: "⏳ Этот issue неактивен 60 дней. Закроется через 7 дней без активности."
           stale-pr-message: "⏳ Этот PR неактивен 30 дней. Закроется через 7 дней."
